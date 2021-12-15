@@ -5,8 +5,9 @@ a race car in pygame
 """
 
 __author__ = "TFC343"
-__version__ = "1.0.0`"
+__version__ = "1.1.0"
 
+import os
 import sys
 import time
 import traceback
@@ -89,11 +90,15 @@ class Track:
         return 0
 
     def draw(self, surface):
+        # for check, entity in zip(self.checks, self.check_points):
+        #     entity.draw(surface, 'light blue' if check else 'blue')
+        # for entity in self.outer_lines + self.inner_lines:
+        #     entity.draw(surface, 'white', True)
+        pygame.draw.polygon(surface, (100, 100, 100), [i.start for i in self.outer_lines])
+        pygame.draw.polygon(surface, FLOOR, [i.start for i in self.inner_lines])
         self.start.draw(surface, 'blue')
         for check, entity in zip(self.checks, self.check_points):
             entity.draw(surface, 'light blue' if check else 'blue')
-        for entity in self.outer_lines + self.inner_lines:
-            entity.draw(surface, 'white', True)
 
     def update(self, car):
         for num, point in enumerate(self.check_points):
@@ -121,12 +126,12 @@ class Car(pygame.sprite.Sprite):
         self.velocity = [0, 0]
         self.rel_vel = [0, 0]
         self.angle = 0
-        self.width, self.height = 12, 30
-        # self.image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        # self.original_image = self.image
-        # self.image.fill(WHITE)
-        # self.rect = self.image.get_rect()
-        # self.rect.center = pos
+        size_mod = 2
+        self.width, self.height = int(10*size_mod), int(23*size_mod)
+        self.image = pygame.transform.scale(pygame.image.load(resource_path("car.png")), (self.width, self.height))
+        self.original_image = self.image
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
         super().__init__()
 
     def reset(self):
@@ -174,11 +179,8 @@ class Car(pygame.sprite.Sprite):
         return Line(corners[0], corners[1]), Line(corners[1], corners[3]), Line(corners[0], corners[2]), Line(corners[2], corners[3])
 
     def draw(self, surface):
-
-        # surface.blit(self.image, self.rect)
-        pygame.draw.polygon(surface, WHITE, self.get_corners())
-        for i in self.get_corners():
-            pygame.draw.circle(surface, 'red', i, 3)
+        self.temp = pygame.transform.rotate(self.original_image, degrees(self.angle))
+        surface.blit(self.temp, self.temp.get_rect(center=self.exact_pos))
 
     def accelerate(self, mag):
         self.velocity[0] += mag*sin(self.angle)
@@ -217,6 +219,17 @@ class Car(pygame.sprite.Sprite):
     @property
     def right(self):
         return max(self.get_corners(), key=lambda x: x[0])[0]
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 
 BLACK = pygame.Color(0, 0, 0)
@@ -284,7 +297,7 @@ def main():
         car.update()
         track.update(car)
 
-        surf.fill(BLACK)
+        surf.fill(FLOOR)
         in_bound = True
         corners = car.get_corners()
         for corner in corners:
@@ -299,7 +312,6 @@ def main():
 
         if not in_bound: track.lap_start -= 0.001
 
-        car.draw(surf)
         # draw_polygon(surf, WHITE, poly, )
         track.draw(surf)
         rend = FONT.render(str(round(track.get_lap_time(), 5)), True, (255, 255, 255) if in_bound else (255, 0, 0))
@@ -313,6 +325,8 @@ def main():
                 c = WHITE
             rend = FONT.render(str(round(time_, 5)), True, c)
             surf.blit(rend, (0, 50*i+60))
+
+        car.draw(surf)
         pygame.display.update()
 
         fps.tick(FPS)
